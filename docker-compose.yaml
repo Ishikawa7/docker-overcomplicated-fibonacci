@@ -1,0 +1,54 @@
+version: '3'
+services:
+  #postgress database to save indicies already seen
+  postgres:
+    image: 'postgres:latest'
+  #redis to save calculated values
+  redis:
+    image: 'redis:latest'
+  #server (express)
+  api:
+    depends_on:
+      - postgres
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server
+    volumes: #volumes is mostly used in dev. phase to avoid building the image many times 
+      - /app/node_modules #don't overrides this files
+      - ./server:/app
+    environment:
+      - REDIS_HOST=redis #url to access redis (= "redis" because redis is the name of the service)
+      - REDIS_PORT=6379 #default port 
+      #from documentation default values
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres_password
+      - PGPORT=5432
+  # react server
+  client:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+  # worker (calc fibonacci)
+  worker:
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker
+    volumes:
+      - /app/node_modules
+      - ./worker:/app
+  # nginx server (routing)
+  nginx:
+    restart: always
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx
+    ports:
+      - '3050:80'
